@@ -1,0 +1,32 @@
+LibraTrack Security Design
+==========================
+
+Roles
+-----
+1. reader    — default role for new users
+2. librarian — library staff, can manage books and loans
+3. admin     — full access, can manage users and roles
+
+Access Control Matrix
+---------------------
+Endpoint                          | Public | Reader | Librarian | Admin
+----------------------------------|--------|--------|-----------|------
+POST /api/v1/auth/register        |   X    |   X    |     X     |   X
+POST /api/v1/auth/login           |   X    |   X    |     X     |   X
+GET  /api/v1/books                |   X    |   X    |     X     |   X
+GET  /api/v1/me/loans             |        |   X    |     X     |   X
+POST /api/v1/books                |        |        |     X     |   X
+PUT  /api/v1/books/:id            |        |        |     X     |   X
+POST /api/v1/loans                |        |        |     X     |   X
+POST /api/v1/loans/:id/return     |        |        |     X     |   X
+GET  /api/v1/users                |        |        |           |   X
+PUT  /api/v1/users/:id/role       |        |        |           |   X
+
+DTO Design (Mass Assignment Prevention)
+----------------------------------------
+- RegisterRequest: only email + password (no role, no id)
+- LoginRequest: only email + password
+- CreateBookRequest: only title + author + isbn
+- UpdateBookRequest: only title + author + isbn
+- UpdateRoleRequest: only role
+- User model: PasswordHash tagged json:"-" to prevent hash exposure

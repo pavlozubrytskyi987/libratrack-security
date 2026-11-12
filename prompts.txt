@@ -1,0 +1,54 @@
+=== Task 2.1: Authentication Module Prompt ===
+
+Generate the authentication module for a Go/Gin REST API called LibraTrack.
+
+Requirements:
+1. Create DB migration files (000003_add_auth_fields.up.sql / .down.sql) that add
+   password_hash (TEXT, NOT NULL) and role (VARCHAR(20), DEFAULT 'reader') columns
+   to the users table.
+2. Update the Go User model struct: include PasswordHash with json:"-" tag so it
+   never leaks in JSON responses.
+3. Create RegisterRequest and LoginRequest DTOs that only contain user-editable
+   fields (email, password). No role or ID fields in RegisterRequest.
+4. Implement Register handler:
+   - Hash passwords with bcrypt.GenerateFromPassword using bcrypt.DefaultCost (10)
+   - Default new users to "reader" role
+   - Return 422 for duplicate emails
+5. Implement Login handler:
+   - Verify passwords with bcrypt.CompareHashAndPassword
+   - Return identical "invalid credentials" message for both unknown email AND
+     wrong password (prevents user enumeration)
+   - Issue JWT signed with jwt.SigningMethodHS256
+   - JWT payload: user_id, role, exp (24 hours)
+   - Signing secret from os.Getenv("JWT_SECRET")
+
+Place auth logic in internal/auth/auth.go, handlers in internal/handler/auth_handler.go.
+
+
+=== Task 2.2: Middleware Chain Prompt ===
+
+Generate AuthMiddleware and RequireRole middleware for a Go/Gin REST API.
+
+Requirements:
+1. AuthMiddleware (internal/middleware/auth.go):
+   - Extract token from "Authorization: Bearer <token>" header
+   - Validate JWT signature and exp claim
+   - On failure: c.AbortWithStatusJSON(401, ...) — must use Abort to stop chain
+   - On success: store claims in Gin context via c.Set("user_id", ...) and
+     c.Set("role", ...)
+
+2. RequireRole (internal/middleware/rbac.go):
+   - Variadic function: RequireRole(allowed ...string)
+   - Check c.Get("role") against allowed roles
+   - Return 401 if no role in context (unauthenticated)
+   - Return 403 if role not in allowed list (forbidden)
+   - Use c.AbortWithStatusJSON for both cases
+
+3. Route registration in main.go using nested Gin route groups:
+   - public: POST /auth/register, POST /auth/login, GET /books (no middleware)
+   - protected: GET /me/loans (AuthMiddleware only)
+   - staff: POST /books, PUT /books/:id, POST /loans, POST /loans/:id/return
+     (AuthMiddleware + RequireRole("librarian", "admin"))
+   - admin: GET /users, PUT /users/:id/role
+     (AuthMiddleware + RequireRole("admin"))
+   - Auth middleware always runs before RBAC middleware in the chain
